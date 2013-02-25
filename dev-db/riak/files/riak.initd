@@ -1,0 +1,62 @@
+#!/sbin/runscript
+# Copyright 1999-2010 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+#
+# Riak Distributed Data Store
+#
+# description: Riak is a distributed data store.
+# processname: beam
+# config: /etc/riak/app.config
+# config: /etc/riak/vm.args
+#
+# Ryuichi Maeno<ryuone@gmail.com>
+#
+
+#check for script,config, and data dirs
+#[ -x /usr/sbin/riak ] || exit 0
+#[ -d /etc/riak ] || exit 0
+#[ -d /var/lib/riak ] || exit 0
+
+NAME=riak
+DAEMON=/usr/sbin/$NAME
+
+start() {
+	#Check if Riak is running
+	RETVAL=`su - riak -c "$DAEMON ping"`
+	[ "$RETVAL" = "pong" ] && echo "Riak is already running" && return 1
+
+	ebegin "Starting Riak: "
+
+	# For pipe directory. Create /tmp/riak if necessary
+	if [ ! -d /tmp/riak ]; then
+		mkdir -p /tmp/riak
+		chown riak:riak /tmp/riak
+	fi
+
+	su - riak -c "$DAEMON start"
+
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping Riak: "
+
+	RETVAL=`su - riak -c "$DAEMON ping"`
+	[ "$RETVAL" = "pong" ] && su - riak -c "$DAEMON stop 2>/dev/null 1>&2"
+
+	[ "$?" != "0" ] && return 1
+
+	sleep 5
+	RETVAL=`pidof beam.smp`
+	[ "$RETVAL" = "" ] && echo "$NAME stop"
+
+	eend 0
+}
+
+status() {
+	RETVAL=`su - riak -c "$DAEMON ping"`
+	[ "$RETVAL" = "pong" ] && echo $"$NAME is running..." && return 0
+	echo $"$NAME is stopped"
+	return 1
+}
